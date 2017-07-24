@@ -1,0 +1,116 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config| 
+  
+  config.vm.define :webserver do |main1|
+  
+  main1.vm.box = "yussupov/firstVagrantBox"
+  main1.vm.box_version = "0.0.1"
+  main1.vm.hostname = "webserver"
+  main1.vm.box_url = "https://atlas.hashicorp.com/yussupov/boxes/firstVagrantBox"
+  main1.vm.network "forwarded_port", guest: 80, host: 8001
+  main1.vm.network "private_network", ip: "192.168.100.13"
+  
+  main1.vm.provider "virtualbox" do |vb|
+
+	vb.memory = "1024"
+	vb.cpus = 1
+	vb.customize ["modifyvm", :id, "--cpuexecutioncap", "75"]
+  end
+  
+   main1.vm.provision "shell", inline: <<-SHELL
+  
+      sudo apt-get update
+      sudo apt-get install -y apache2
+	  
+	  sudo yum -y install httpd
+	  sudo yum -y install php php-mysql
+	  
+	  sudo firewall-cmd --permanent --add-port=80/tcp
+	  sudo firewall-cmd --reload
+
+	  sudo systemctl start httpd
+	  sudo systemctl enable httpd
+	  sudo systemctl status httpd
+	  sudo chmod -R 777 /var/www/html
+	  
+	  setsebool -P httpd_can_network_connect_db on
+SHELL
+   main1.vm.provision "file", source: "index.php", destination: "/var/www/html/index.php"
+end
+
+  config.vm.define :dbserver do |main2|
+  
+  main2.vm.box = "yussupov/firstVagrantBox"
+  main2.vm.box_version = "0.0.1"
+  main2.vm.hostname = "dbserver"
+  main2.vm.box_url = "https://atlas.hashicorp.com/yussupov/boxes/firstVagrantBox"
+  main2.vm.network "forwarded_port", guest: 80, host: 8002
+  main2.vm.network "private_network", ip: "192.168.100.14"
+  
+  main2.vm.provider "virtualbox" do |vb|
+
+	vb.memory = "1024"
+	vb.cpus = 1
+	vb.customize ["modifyvm", :id, "--cpuexecutioncap", "75"]
+  end
+  
+   main2.vm.provision "shell", inline: <<-SHELL
+  
+      sudo apt-get update
+  
+	  sudo yum -y install mariadb-server  
+	  sudo systemctl start mariadb
+	  sudo systemctl enable mariadb.service
+	  
+	  sudo chmod -R 777 /var/www/html
+	  setsebool -P httpd_can_network_connect_db on
+	  
+	  cat <<EOF | mysql
+	  SET PASSWORD FOR 'root'@'localhost' = PASSWORD('secret');
+	  CREATE user 'root'@'192.168.100.13' identified by 'secret';
+	  DELETE FROM mysql.user WHERE User='';
+	  FLUSH PRIVILEGES;
+EOF
+	  sudo firewall-cmd --zone=public --add-port=3306/tcp
+	  sudo firewall-cmd --reload
+
+SHELL
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
